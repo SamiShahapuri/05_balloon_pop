@@ -20,6 +20,8 @@ class GameEngine:
         self.balloons = []
         self.frames_until_spawn = 0
         self.score = 0
+        self.lives = 3
+        self.game_over = False
 
     def _spawn_balloon(self):
         radius = random.randint(16, 44)
@@ -50,16 +52,44 @@ class GameEngine:
 
     def update(self):
         self.frames_until_spawn -= 1
-        if self.frames_until_spawn <= 0:
+        if self.frames_until_spawn <= 0 and not self.game_over:
             self._spawn_balloon()
             self.frames_until_spawn = SPAWN_INTERVAL_FRAMES
 
         for b in self.balloons:
             b.update()
 
-        self.balloons = [b for b in self.balloons if not b.is_past_bottom(HEIGHT)]
+        remaining_balloons = []
+
+        for b in self.balloons:
+            if b.is_past_bottom(HEIGHT):
+                self.lives -= 1
+            else:
+                remaining_balloons.append(b)
+
+        self.balloons = remaining_balloons
+
+        if self.lives <= 0:
+            self.lives = 0
+            self.game_over = True
 
     def draw(self, surface, font):
         from game import renderer
+
         renderer.draw_scene(surface, self.balloons)
         renderer.draw_text(surface, font, f"Score: {self.score}", (10, 10))
+        renderer.draw_text(surface, font, f"Lives: {self.lives}", (10, 40))
+
+        if self.game_over:
+            renderer.draw_text(
+                surface,
+                font,
+                "GAME OVER",
+                (WIDTH // 2 - 70, HEIGHT // 2),
+            )
+            renderer.draw_text(
+                surface,
+                font,
+                f"Final Score: {self.score}",
+                (WIDTH // 2 - 90, HEIGHT // 2 + 40),
+            )
