@@ -7,12 +7,14 @@ lives system yet, no timer yet. Click detection also has a known bug
 """
 
 import random
+import time
 
 from game.balloon import Balloon
 from game.click_detection import check_pop
 from game.renderer import WIDTH, HEIGHT
 
 SPAWN_INTERVAL_FRAMES = 45
+ROUND_DURATION = 30
 
 
 class GameEngine:
@@ -22,6 +24,7 @@ class GameEngine:
         self.score = 0
         self.lives = 3
         self.game_over = False
+        self.round_start_time = time.time()
 
     def _spawn_balloon(self):
         radius = random.randint(16, 44)
@@ -45,13 +48,23 @@ class GameEngine:
         )
 
     def handle_click(self, pos):
+        if self.game_over:
+            return
+
         popped = check_pop(self.balloons, pos)
         if popped is not None:
             self.balloons.remove(popped)
             self.score += popped.points
 
     def update(self):
+        elapsed_time = time.time() - self.round_start_time
+
+        if elapsed_time >= ROUND_DURATION:
+            self.game_over = True
+            return
+
         self.frames_until_spawn -= 1
+
         if self.frames_until_spawn <= 0 and not self.game_over:
             self._spawn_balloon()
             self.frames_until_spawn = SPAWN_INTERVAL_FRAMES
@@ -77,8 +90,30 @@ class GameEngine:
         from game import renderer
 
         renderer.draw_scene(surface, self.balloons)
-        renderer.draw_text(surface, font, f"Score: {self.score}", (10, 10))
-        renderer.draw_text(surface, font, f"Lives: {self.lives}", (10, 40))
+
+        elapsed_time = time.time() - self.round_start_time
+        remaining_time = max(0, ROUND_DURATION - int(elapsed_time))
+
+        renderer.draw_text(
+            surface,
+            font,
+            f"Score: {self.score}",
+            (10, 10),
+        )
+
+        renderer.draw_text(
+            surface,
+            font,
+            f"Lives: {self.lives}",
+            (10, 40),
+        )
+
+        renderer.draw_text(
+            surface,
+            font,
+            f"Time: {remaining_time}",
+            (10, 70),
+        )
 
         if self.game_over:
             renderer.draw_text(
@@ -87,9 +122,24 @@ class GameEngine:
                 "GAME OVER",
                 (WIDTH // 2 - 70, HEIGHT // 2),
             )
+
             renderer.draw_text(
                 surface,
                 font,
                 f"Final Score: {self.score}",
                 (WIDTH // 2 - 90, HEIGHT // 2 + 40),
             )
+
+            renderer.draw_text(
+                surface,
+                font,
+                "Press R to Restart",
+                (WIDTH // 2 - 90, HEIGHT // 2 + 70),
+            )
+    def restart(self):
+        self.balloons = []
+        self.frames_until_spawn = 0
+        self.score = 0
+        self.lives = 3
+        self.game_over = False
+        self.round_start_time = time.time()
